@@ -6,9 +6,16 @@
     <title>萬用圖形去背變色工具</title>
     
     <!-- ========================================== -->
-    <!-- 🌟 這裡已經為你修改成讀取你的 icon.jpg 🌟 -->
+    <!-- 🌟 修改網頁分頁圖示 (Favicon) 的地方在這裡！ 🌟 -->
     <!-- ========================================== -->
-    <link rel="icon" type="image/jpeg" href="icon.jpg">
+    
+    <!-- 目前寫法：我用程式碼幫你畫了一個 #937760 顏色的「回」字符號作為預設圖示 -->
+    <link rel="icon" id="favicon" href="data:image/svg+xml;charset=UTF-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='25' y='25' width='150' height='150' fill='none' stroke='%23937760' stroke-width='20'/%3E%3Crect x='70' y='70' width='60' height='60' fill='none' stroke='%23937760' stroke-width='20'/%3E%3C/svg%3E">
+
+    <!-- 💡 如果你想換成【你自己的圖片】，請把上面那行刪掉，然後把下面這行的註解 (<!-- 和 -->
+    <!-- <link rel="icon" type="image/png" href="favicon.png"> -->
+    <!-- 備註：記得把你的圖片命名為 favicon.png，並和這個 html 檔案放在同一個資料夾裡喔！ -->
+
     <!-- ========================================== -->
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -31,20 +38,14 @@
 <body class="bg-gray-100 min-h-screen p-0 sm:p-4 md:p-8 font-sans text-gray-800">
     <div class="max-w-4xl mx-auto bg-white sm:rounded-2xl shadow-xl overflow-hidden min-h-screen sm:min-h-0">
         
-        <!-- 頂部標題區 -->
-        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-6 md:p-8 text-white text-center relative overflow-hidden">
+        <!-- 頂部標題區 (已移除中間大頭貼，版面更乾淨) -->
+        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-8 md:p-10 text-white text-center relative overflow-hidden">
             <!-- 裝飾性背景光暈 -->
             <div class="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
             
             <div class="relative z-10 flex flex-col items-center justify-center">
-                <!-- APP 專屬圓形頭像 (Avatar) -->
-                <div class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 border-4 border-white/20 transition-transform hover:scale-105 overflow-hidden">
-                    <!-- 這裡也順便幫你把畫面的大頭貼連動到你的 icon.jpg -->
-                    <img src="icon.jpg" alt="APP Logo" class="w-full h-full object-cover">
-                </div>
-
-                <h1 class="text-2xl md:text-3xl font-bold mb-2 tracking-wide">圖形去背與變色神器</h1>
-                <p class="text-xs md:text-sm opacity-90 font-light">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
+                <h1 class="text-3xl md:text-4xl font-bold mb-3 tracking-wide">圖形去背與變色神器</h1>
+                <p class="text-sm md:text-base opacity-90 font-light">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
             </div>
         </div>
 
