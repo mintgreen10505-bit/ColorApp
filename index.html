@@ -6,11 +6,17 @@
     <title>萬用圖形去背變色工具</title>
     
     <!-- ========================================== -->
-    <!-- 🌟 修改網頁分頁圖示 (Favicon) 的地方在這裡！ 🌟 -->
+    <!-- 🌟 強制破解快取的寫法 🌟 -->
+    <!-- 加上 ./ 代表當前目錄，加上 ?v=2 強迫瀏覽器重新抓取圖片 -->
     <!-- ========================================== -->
     
-    <!-- 目前寫法：使用你上傳的 icon.jpg 作為預設圖示 -->
-    <link rel="icon" type="image/jpeg" href="icon.jpg">
+    <!-- 1. 電腦瀏覽器分頁的小圖示 (Favicon) -->
+    <link rel="icon" type="image/jpeg" href="./icon.jpg?v=2">
+    
+    <!-- 2. 手機「加入主畫面」的專屬 APP 圖示 -->
+    <link rel="apple-touch-icon" href="./icon.jpg?v=2">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 
     <!-- ========================================== -->
 
