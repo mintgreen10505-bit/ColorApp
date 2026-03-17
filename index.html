@@ -4,6 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>萬用圖形去背變色工具</title>
+    
+    <!-- ========================================== -->
+    <!-- 🌟 這裡已經為你修改成讀取你的 icon.jpg 🌟 -->
+    <!-- ========================================== -->
+    <link rel="icon" type="image/jpeg" href="icon.jpg">
+    <!-- ========================================== -->
+
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- 引入 ImageTracer.js 來實現 點陣圖轉向量(SVG) 的功能 -->
     <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
@@ -25,9 +32,20 @@
     <div class="max-w-4xl mx-auto bg-white sm:rounded-2xl shadow-xl overflow-hidden min-h-screen sm:min-h-0">
         
         <!-- 頂部標題區 -->
-        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-5 md:p-6 text-white text-center">
-            <h1 class="text-2xl md:text-3xl font-bold mb-2">圖形去背與變色神器</h1>
-            <p class="text-xs md:text-sm opacity-90">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
+        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-6 md:p-8 text-white text-center relative overflow-hidden">
+            <!-- 裝飾性背景光暈 -->
+            <div class="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
+            
+            <div class="relative z-10 flex flex-col items-center justify-center">
+                <!-- APP 專屬圓形頭像 (Avatar) -->
+                <div class="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full flex items-center justify-center shadow-lg mb-4 border-4 border-white/20 transition-transform hover:scale-105 overflow-hidden">
+                    <!-- 這裡也順便幫你把畫面的大頭貼連動到你的 icon.jpg -->
+                    <img src="icon.jpg" alt="APP Logo" class="w-full h-full object-cover">
+                </div>
+
+                <h1 class="text-2xl md:text-3xl font-bold mb-2 tracking-wide">圖形去背與變色神器</h1>
+                <p class="text-xs md:text-sm opacity-90 font-light">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
+            </div>
         </div>
 
         <div class="p-4 md:p-8">
@@ -47,8 +65,8 @@
                     </div>
                 </div>
                 
-                <!-- 新增：預設質感色號按鈕 -->
-                <div class="mt-2 mb-5">
+                <!-- 預設質感色號按鈕 -->
+                <div class="mt-4 mb-2">
                     <label class="block text-sm font-bold text-gray-700 mb-2">✨ 快速切換推薦色號 (點擊立即變色)</label>
                     <div class="flex flex-wrap gap-3">
                         <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #937760;" data-color="#937760" title="原定奶茶色"></button>
@@ -59,7 +77,7 @@
                     </div>
                 </div>
 
-                <!-- 新增：進階微調滑桿 (解決邊緣與破洞問題) -->
+                <!-- 進階微調滑桿 (解決邊緣與破洞問題) -->
                 <div class="mt-6 pt-5 border-t border-gray-200">
                     <label class="block text-sm font-bold text-gray-700 mb-4">⚙️ 進階微調 (修補破洞與邊緣平滑)</label>
                     
@@ -122,7 +140,7 @@
         const targetColorInput = document.getElementById('targetColor');
         const colorHexInput = document.getElementById('colorHexInput');
         
-        // 新增：滑桿 DOM 元素
+        // 滑桿 DOM 元素
         const solidSlider = document.getElementById('solidSlider');
         const clearSlider = document.getElementById('clearSlider');
         const solidValue = document.getElementById('solidValue');
@@ -155,7 +173,7 @@
             }
         });
 
-        // 新增：監聽手動輸入色號
+        // 監聽手動輸入色號
         colorHexInput.addEventListener('input', (e) => {
             let val = e.target.value.trim();
             // 自動補上 # 字號
@@ -195,7 +213,7 @@
             }
         });
 
-        // 新增：監聽預設顏色按鈕點擊
+        // 監聽預設顏色按鈕點擊
         const colorPresets = document.querySelectorAll('.color-preset');
         colorPresets.forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -208,7 +226,7 @@
             });
         });
 
-        // 新增：監聽滑桿數值改變
+        // 監聽滑桿數值改變
         solidSlider.addEventListener('input', (e) => {
             solidValue.textContent = e.target.value;
             // 確保實心度不能大於等於去背度
@@ -228,7 +246,6 @@
             }
             if (currentOriginalImage) processImageToCanvas();
         });
-
 
         // 監聽圖片上傳
         imageUpload.addEventListener('change', function(e) {
@@ -270,7 +287,7 @@
             const solidThreshold = parseInt(solidSlider.value);
             const clearThreshold = parseInt(clearSlider.value);
 
-            // 3. 逐一處理像素 (這是一種聰明的灰階映射法，可以完美保留邊緣反鋸齒)
+            // 3. 逐一處理像素
             for (let i = 0; i < data.length; i += 4) {
                 const r = data[i];
                 const g = data[i+1];
@@ -283,19 +300,15 @@
 
                 // 根據滑桿動態計算透明度
                 if (lightness >= clearThreshold) {
-                    // 大於「去背乾淨度」的像素：視為白色背景，完全透明
                     newAlpha = 0; 
                 } else if (lightness <= solidThreshold) {
-                    // 小於「實心飽滿度」的像素：視為圖案主體，完全實心不透明
                     newAlpha = 255; 
                 } else {
-                    // 介於兩者之間的像素：進行平滑過渡 (反鋸齒漸層區)
                     const range = clearThreshold - solidThreshold;
                     const distance = clearThreshold - lightness;
                     newAlpha = Math.round((distance / range) * 255);
                 }
 
-                // 將目標顏色填入，並賦予計算出來的透明度
                 data[i]     = targetRGB.r;
                 data[i+1]   = targetRGB.g;
                 data[i+2]   = targetRGB.b;
@@ -316,33 +329,27 @@
             document.body.removeChild(a);
         });
 
-        // 下載向量 SVG (利用 ImageTracer 庫)
+        // 下載向量 SVG
         btnDownloadSvg.addEventListener('click', () => {
             if (!currentOriginalImage) return;
             
-            // 變更按鈕狀態為處理中
             svgBtnText.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 運算轉換中...';
             btnDownloadSvg.disabled = true;
 
-            // 給 UI 一點時間更新狀態，再執行耗時的 SVG 轉換
             setTimeout(() => {
                 try {
-                    // 取得目前 Canvas 上已經去背變色的影像數據
                     const imageData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
                     
-                    // 使用 ImageTracer 將點陣圖轉換為 SVG 格式字串
-                    // 這裡設定參數優化簡單幾何圖形的追蹤效果
                     const options = {
-                        ltres: 0.1,      // 線條追蹤精度
-                        qtres: 1,        // 曲線追蹤精度
-                        pathomit: 8,     // 忽略過小的雜訊路徑
-                        colorsampling: 0,// 關閉顏色採樣，因為我們已經指定了單一顏色
+                        ltres: 0.1,
+                        qtres: 1,
+                        pathomit: 8,
+                        colorsampling: 0,
                         pal: [{r:0, g:0, b:0, a:0}, {r: hexToRgb(targetColorInput.value).r, g: hexToRgb(targetColorInput.value).g, b: hexToRgb(targetColorInput.value).b, a: 255}]
                     };
 
                     const svgString = ImageTracer.imagedataToSVG(imageData, options);
                     
-                    // 建立並下載 SVG 檔案
                     const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -357,11 +364,10 @@
                     alert("SVG 轉換過程中發生錯誤。如果圖片尺寸過大可能無法轉換。");
                     console.error(error);
                 } finally {
-                    // 恢復按鈕狀態
-                    svgBtnText.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> AI 轉換為向量 SVG';
+                    svgBtnText.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> AI 轉換為向量 SVG';
                     btnDownloadSvg.disabled = false;
                 }
-            }, 50); // 延遲 50ms 讓按鈕的 spinner 有機會渲染出來
+            }, 50);
         });
 
     </script>
