@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>萬用圖形去背變色工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入 ImageTracer.js 來實現 點陣圖轉向量(SVG) 的功能 -->
+    <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+    <style>
+        /* 建立透明背景的棋盤格效果，讓使用者看出圖片已經去背 */
+        .checkerboard-bg {
+            background-color: #f0f0f0;
+            background-image: 
+                linear-gradient(45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #ccc 75%), 
+                linear-gradient(-45deg, transparent 75%, #ccc 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-0 sm:p-4 md:p-8 font-sans text-gray-800">
+    <div class="max-w-4xl mx-auto bg-white sm:rounded-2xl shadow-xl overflow-hidden min-h-screen sm:min-h-0">
+        
+        <!-- 頂部標題區 -->
+        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-5 md:p-6 text-white text-center">
+            <h1 class="text-2xl md:text-3xl font-bold mb-2">圖形去背與變色神器</h1>
+            <p class="text-xs md:text-sm opacity-90">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
+        </div>
+
+        <div class="p-4 md:p-8">
+            
+            <!-- 控制面板 -->
+            <div class="max-w-xl mx-auto mb-6 md:mb-8 bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200 shadow-sm">
+                <div class="mb-5">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">1. 上傳您的圖片 (建議白底、線條清晰的圖形)</label>
+                    <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#937760] file:text-white hover:file:bg-[#7a624f] cursor-pointer transition-all">
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-bold text-gray-700 mb-2">2. 選擇您要轉換的新顏色</label>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <input type="color" id="targetColor" value="#937760" class="h-12 w-20 sm:w-24 shrink-0 rounded cursor-pointer border-2 border-gray-300 p-0 shadow-sm">
+                        <input type="text" id="colorHexInput" value="#937760" maxlength="7" placeholder="#HEX" class="flex-1 min-w-[120px] max-w-full sm:w-32 font-mono text-base sm:text-lg font-bold text-gray-700 bg-white px-3 py-2 border-2 border-gray-200 rounded shadow-sm focus:outline-none focus:border-[#937760] focus:ring-1 focus:ring-[#937760] uppercase transition-all" title="可手動輸入色號">
+                    </div>
+                </div>
+                
+                <!-- 新增：預設質感色號按鈕 -->
+                <div class="mt-2 mb-5">
+                    <label class="block text-sm font-bold text-gray-700 mb-2">✨ 快速切換推薦色號 (點擊立即變色)</label>
+                    <div class="flex flex-wrap gap-3">
+                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #937760;" data-color="#937760" title="原定奶茶色"></button>
+                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #D4AF37;" data-color="#D4AF37" title="香檳金"></button>
+                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #1A1A1A;" data-color="#1A1A1A" title="極致黑"></button>
+                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #5B7A8C;" data-color="#5b7a8c" title="莫蘭迪藍"></button>
+                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #8C4A4A;" data-color="#8c4a4a" title="復古紅"></button>
+                    </div>
+                </div>
+
+                <!-- 新增：進階微調滑桿 (解決邊緣與破洞問題) -->
+                <div class="mt-6 pt-5 border-t border-gray-200">
+                    <label class="block text-sm font-bold text-gray-700 mb-4">⚙️ 進階微調 (修補破洞與邊緣平滑)</label>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>實心飽滿度 (修補破洞)</span>
+                            <span id="solidValue">150</span>
+                        </div>
+                        <input type="range" id="solidSlider" min="0" max="230" value="150" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#937760]">
+                        <p class="text-[11px] text-gray-400 mt-1">往右拉：強制填滿圖案內部，解決透色與破洞。</p>
+                    </div>
+
+                    <div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>去背乾淨度 (去除雜訊)</span>
+                            <span id="clearValue">240</span>
+                        </div>
+                        <input type="range" id="clearSlider" min="10" max="255" value="240" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#937760]">
+                        <p class="text-[11px] text-gray-400 mt-1">往左拉：讓邊緣更銳利，可去除殘留的白邊或淺色浮水印。</p>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- 預覽區 (預設隱藏，上傳後顯示) -->
+            <div id="preview-section" class="hidden">
+                <div class="flex flex-col items-center mb-8">
+                    <h3 class="font-bold text-gray-700 mb-3 bg-gray-200 px-4 py-1 rounded-full text-sm flex items-center gap-2">
+                        <span>預覽結果 (已自動去背)</span>
+                    </h3>
+                    <!-- 使用棋盤格背景顯示去背效果 -->
+                    <div class="checkerboard-bg p-2 sm:p-4 border border-gray-300 rounded-lg shadow-inner w-full max-w-full overflow-hidden flex justify-center">
+                        <canvas id="canvas-result" class="max-w-full h-auto drop-shadow-md mx-auto"></canvas>
+                    </div>
+                    <p class="text-xs sm:text-sm text-gray-500 mt-2 text-center">提示：背景的棋盤格代表透明區域</p>
+                </div>
+
+                <!-- 下載按鈕區 -->
+                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center w-full" id="download-actions">
+                    <button id="btn-download-png" class="w-full sm:w-auto px-5 py-3.5 bg-[#937760] text-white rounded-lg hover:bg-[#7a624f] active:bg-[#5a4838] shadow-md transition-all font-bold text-base md:text-lg flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                        下載去背 PNG
+                    </button>
+                    
+                    <button id="btn-download-svg" class="w-full sm:w-auto px-5 py-3.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 active:bg-black shadow-md transition-all font-bold text-base md:text-lg flex items-center justify-center gap-2 relative">
+                        <span id="svg-btn-text" class="flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
+                            AI 轉換為向量 SVG
+                        </span>
+                    </button>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // DOM 元素選取
+        const imageUpload = document.getElementById('imageUpload');
+        const targetColorInput = document.getElementById('targetColor');
+        const colorHexInput = document.getElementById('colorHexInput');
+        
+        // 新增：滑桿 DOM 元素
+        const solidSlider = document.getElementById('solidSlider');
+        const clearSlider = document.getElementById('clearSlider');
+        const solidValue = document.getElementById('solidValue');
+        const clearValue = document.getElementById('clearValue');
+
+        const previewSection = document.getElementById('preview-section');
+        const canvasResult = document.getElementById('canvas-result');
+        const ctxResult = canvasResult.getContext('2d');
+        const btnDownloadPng = document.getElementById('btn-download-png');
+        const btnDownloadSvg = document.getElementById('btn-download-svg');
+        const svgBtnText = document.getElementById('svg-btn-text');
+
+        let currentOriginalImage = null; // 儲存原始圖片物件
+
+        // Hex 轉 RGB 輔助函數
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : { r: 147, g: 119, b: 96 };
+        }
+
+        // 監聽顏色改變 (從調色盤)
+        targetColorInput.addEventListener('input', (e) => {
+            colorHexInput.value = e.target.value.toUpperCase();
+            if (currentOriginalImage) {
+                processImageToCanvas();
+            }
+        });
+
+        // 新增：監聽手動輸入色號
+        colorHexInput.addEventListener('input', (e) => {
+            let val = e.target.value.trim();
+            // 自動補上 # 字號
+            if (val.length > 0 && !val.startsWith('#')) {
+                val = '#' + val;
+            }
+            
+            // 檢查是否為合法的 3 碼或 6 碼 HEX 色號
+            const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
+            if (hexRegex.test(val)) {
+                let fullHex = val;
+                // 如果是 3 碼縮寫 (如 #FFF)，展開成 6 碼 (#FFFFFF) 以符合 input[type="color"] 格式
+                if (val.length === 4) {
+                    fullHex = '#' + val[1]+val[1] + val[2]+val[2] + val[3]+val[3];
+                }
+                targetColorInput.value = fullHex; // 同步更新左側色塊
+                if (currentOriginalImage) {
+                    processImageToCanvas();
+                }
+            }
+        });
+
+        // 失去焦點時自動格式化或還原錯誤輸入
+        colorHexInput.addEventListener('blur', (e) => {
+            let val = e.target.value.trim();
+            if (!val.startsWith('#')) val = '#' + val;
+            const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
+            if (hexRegex.test(val)) {
+                let fullHex = val;
+                if (val.length === 4) {
+                    fullHex = '#' + val[1]+val[1] + val[2]+val[2] + val[3]+val[3];
+                }
+                e.target.value = fullHex.toUpperCase();
+            } else {
+                // 如果輸入無效格式，還原成目前色塊的顏色
+                e.target.value = targetColorInput.value.toUpperCase();
+            }
+        });
+
+        // 新增：監聽預設顏色按鈕點擊
+        const colorPresets = document.querySelectorAll('.color-preset');
+        colorPresets.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const newColor = e.target.getAttribute('data-color');
+                targetColorInput.value = newColor; // 更新選色器
+                colorHexInput.value = newColor.toUpperCase(); // 更新文字輸入框
+                if (currentOriginalImage) {
+                    processImageToCanvas(); // 觸發重新渲染
+                }
+            });
+        });
+
+        // 新增：監聽滑桿數值改變
+        solidSlider.addEventListener('input', (e) => {
+            solidValue.textContent = e.target.value;
+            // 確保實心度不能大於等於去背度
+            if(parseInt(solidSlider.value) >= parseInt(clearSlider.value)) {
+                clearSlider.value = parseInt(solidSlider.value) + 1;
+                clearValue.textContent = clearSlider.value;
+            }
+            if (currentOriginalImage) processImageToCanvas();
+        });
+
+        clearSlider.addEventListener('input', (e) => {
+            clearValue.textContent = e.target.value;
+            // 確保去背度不能小於等於實心度
+            if(parseInt(clearSlider.value) <= parseInt(solidSlider.value)) {
+                solidSlider.value = parseInt(clearSlider.value) - 1;
+                solidValue.textContent = solidSlider.value;
+            }
+            if (currentOriginalImage) processImageToCanvas();
+        });
+
+
+        // 監聽圖片上傳
+        imageUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const img = new Image();
+                img.onload = function() {
+                    currentOriginalImage = img;
+                    
+                    // 設定 Canvas 尺寸與原圖一致
+                    canvasResult.width = img.width;
+                    canvasResult.height = img.height;
+                    
+                    previewSection.classList.remove('hidden');
+                    processImageToCanvas();
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(file);
+        });
+
+        // 核心影像處理演算法：去背 + 變色
+        function processImageToCanvas() {
+            if (!currentOriginalImage) return;
+
+            // 1. 先將原圖畫上 Canvas
+            ctxResult.clearRect(0, 0, canvasResult.width, canvasResult.height);
+            ctxResult.drawImage(currentOriginalImage, 0, 0);
+
+            // 2. 取得所有像素數據
+            const imageData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+            const data = imageData.data;
+            const targetRGB = hexToRgb(targetColorInput.value);
+
+            // 取得目前的滑桿設定值
+            const solidThreshold = parseInt(solidSlider.value);
+            const clearThreshold = parseInt(clearSlider.value);
+
+            // 3. 逐一處理像素 (這是一種聰明的灰階映射法，可以完美保留邊緣反鋸齒)
+            for (let i = 0; i < data.length; i += 4) {
+                const r = data[i];
+                const g = data[i+1];
+                const b = data[i+2];
+
+                // 計算該像素的亮度 (0~255，越白數值越高)
+                const lightness = (r * 0.299 + g * 0.587 + b * 0.114);
+
+                let newAlpha = 255;
+
+                // 根據滑桿動態計算透明度
+                if (lightness >= clearThreshold) {
+                    // 大於「去背乾淨度」的像素：視為白色背景，完全透明
+                    newAlpha = 0; 
+                } else if (lightness <= solidThreshold) {
+                    // 小於「實心飽滿度」的像素：視為圖案主體，完全實心不透明
+                    newAlpha = 255; 
+                } else {
+                    // 介於兩者之間的像素：進行平滑過渡 (反鋸齒漸層區)
+                    const range = clearThreshold - solidThreshold;
+                    const distance = clearThreshold - lightness;
+                    newAlpha = Math.round((distance / range) * 255);
+                }
+
+                // 將目標顏色填入，並賦予計算出來的透明度
+                data[i]     = targetRGB.r;
+                data[i+1]   = targetRGB.g;
+                data[i+2]   = targetRGB.b;
+                data[i+3]   = newAlpha;
+            }
+
+            // 4. 將處理後的數據放回 Canvas
+            ctxResult.putImageData(imageData, 0, 0);
+        }
+
+        // 下載去背 PNG
+        btnDownloadPng.addEventListener('click', () => {
+            const a = document.createElement('a');
+            a.download = `去背變色圖_${targetColorInput.value.replace('#','')}.png`;
+            a.href = canvasResult.toDataURL('image/png');
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // 下載向量 SVG (利用 ImageTracer 庫)
+        btnDownloadSvg.addEventListener('click', () => {
+            if (!currentOriginalImage) return;
+            
+            // 變更按鈕狀態為處理中
+            svgBtnText.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 運算轉換中...';
+            btnDownloadSvg.disabled = true;
+
+            // 給 UI 一點時間更新狀態，再執行耗時的 SVG 轉換
+            setTimeout(() => {
+                try {
+                    // 取得目前 Canvas 上已經去背變色的影像數據
+                    const imageData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+                    
+                    // 使用 ImageTracer 將點陣圖轉換為 SVG 格式字串
+                    // 這裡設定參數優化簡單幾何圖形的追蹤效果
+                    const options = {
+                        ltres: 0.1,      // 線條追蹤精度
+                        qtres: 1,        // 曲線追蹤精度
+                        pathomit: 8,     // 忽略過小的雜訊路徑
+                        colorsampling: 0,// 關閉顏色採樣，因為我們已經指定了單一顏色
+                        pal: [{r:0, g:0, b:0, a:0}, {r: hexToRgb(targetColorInput.value).r, g: hexToRgb(targetColorInput.value).g, b: hexToRgb(targetColorInput.value).b, a: 255}]
+                    };
+
+                    const svgString = ImageTracer.imagedataToSVG(imageData, options);
+                    
+                    // 建立並下載 SVG 檔案
+                    const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `向量圖_${targetColorInput.value.replace('#','')}.svg`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                } catch (error) {
+                    alert("SVG 轉換過程中發生錯誤。如果圖片尺寸過大可能無法轉換。");
+                    console.error(error);
+                } finally {
+                    // 恢復按鈕狀態
+                    svgBtnText.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> AI 轉換為向量 SVG';
+                    btnDownloadSvg.disabled = false;
+                }
+            }, 50); // 延遲 50ms 讓按鈕的 spinner 有機會渲染出來
+        });
+
+    </script>
+</body>
+</html>
