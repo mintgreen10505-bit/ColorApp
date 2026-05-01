@@ -3,376 +3,290 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>萬用圖形去背變色工具</title>
-    
-    <!-- ========================================== -->
-    <!-- 🌟 強制破解快取的寫法 🌟 -->
-    <!-- 加上 ./ 代表當前目錄，加上 ?v=2 強迫瀏覽器重新抓取圖片 -->
-    <!-- ========================================== -->
-    
-    <!-- 1. 電腦瀏覽器分頁的小圖示 (Favicon) -->
-    <link rel="icon" type="image/jpeg" href="./icon.jpg?v=2">
-    
-    <!-- 2. 手機「加入主畫面」的專屬 APP 圖示 -->
-    <link rel="apple-touch-icon" href="./icon.jpg?v=2">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
-    <!-- ========================================== -->
-
+    <title>台電出入証產生器</title>
+    <!-- 載入 React 與 Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 載入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 ImageTracer.js 來實現 點陣圖轉向量(SVG) 的功能 -->
-    <script src="https://cdn.jsdelivr.net/npm/imagetracerjs@1.2.6/imagetracer_v1.2.6.min.js"></script>
+    <!-- 載入 PDF 工具庫 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* 建立透明背景的棋盤格效果，讓使用者看出圖片已經去背 */
-        .checkerboard-bg {
-            background-color: #f0f0f0;
-            background-image: 
-                linear-gradient(45deg, #ccc 25%, transparent 25%), 
-                linear-gradient(-45deg, #ccc 25%, transparent 25%), 
-                linear-gradient(45deg, transparent 75%, #ccc 75%), 
-                linear-gradient(-45deg, transparent 75%, #ccc 75%);
-            background-size: 20px 20px;
-            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
+        body {
+            font-family: 'Noto Sans TC', "Microsoft JhengHei", sans-serif;
+        }
+        @media print {
+            .no-print { display: none !important; }
         }
     </style>
 </head>
-<body class="bg-gray-100 min-h-screen p-0 sm:p-4 md:p-8 font-sans text-gray-800">
-    <div class="max-w-4xl mx-auto bg-white sm:rounded-2xl shadow-xl overflow-hidden min-h-screen sm:min-h-0">
-        
-        <!-- 頂部標題區 (已移除中間大頭貼，版面更乾淨) -->
-        <div class="bg-gradient-to-r from-[#937760] to-[#5a4838] p-8 md:p-10 text-white text-center relative overflow-hidden">
-            <!-- 裝飾性背景光暈 -->
-            <div class="absolute inset-0 bg-white opacity-5 mix-blend-overlay"></div>
-            
-            <div class="relative z-10 flex flex-col items-center justify-center">
-                <h1 class="text-3xl md:text-4xl font-bold mb-3 tracking-wide">圖形去背與變色神器</h1>
-                <p class="text-sm md:text-base opacity-90 font-light">上傳任何白底圖形 ➔ 自動去背 ➔ 自由變色 ➔ 輸出 PNG/SVG</p>
+<body class="bg-slate-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- 圖示組件 (Inline SVG 確保相容性) ---
+        const Icon = ({ d, size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d={d} />
+            </svg>
+        );
+
+        const FileTextIcon = (props) => <Icon d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z M14 2v6h6" {...props} />;
+        const LayoutGridIcon = (props) => <Icon d="M3 3h7v7H3z M14 3h7v7h-7z M14 14h7v7h-7z M3 14h7v7H3z" {...props} />;
+        const SquareIcon = (props) => <Icon d="M3 3h18v18H3z" {...props} />;
+        const UploadIcon = (props) => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12" {...props} />;
+        const UserIcon = (props) => <Icon d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" {...props} />;
+        const RefreshCwIcon = (props) => <Icon d="M21 2v6h-6 M3 12a9 9 0 0 1 15-6.7L21 8 M3 22v-6h6 M21 12a9 9 0 0 1-15 6.7L3 16" {...props} />;
+        const FileDownIcon = (props) => <Icon d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 3v12" {...props} />;
+        const CheckCircleIcon = (props) => <Icon d="M22 11.08V12a10 10 0 1 1-5.93-9.14 M22 4L12 14.01l-3-3" {...props} />;
+        const AlertCircleIcon = (props) => <Icon d="M12 8v4 M12 16h.01 M22 12A10 10 0 1 1 2 12a10 10 0 0 1 20 0z" {...props} />;
+
+        // --- 台電 LOGO 組件 ---
+        const TaipowerLogo = () => (
+            <svg viewBox="0 0 100 100" className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="50" cy="50" r="47" fill="none" stroke="#0067B0" strokeWidth="2.8" />
+                <circle cx="50" cy="50" r="41.5" fill="none" stroke="#0067B0" strokeWidth="2.8" />
+                <circle cx="50" cy="50" r="36" fill="none" stroke="#0067B0" strokeWidth="2.8" />
+                <g fill="#E60012">
+                    <path d="M42 34 L32 16 L22 34 L32 34 Z" transform="rotate(-6, 42, 34)" />
+                    <path d="M58 34 L68 16 L78 34 L68 34 Z" transform="rotate(6, 58, 34)" />
+                    <path d="M42 66 L32 84 L22 66 L32 66 Z" transform="rotate(6, 42, 66)" />
+                    <path d="M58 66 L68 84 L78 66 L68 66 Z" transform="rotate(-6, 58, 66)" />
+                </g>
+                <g fill="none" stroke="#0067B0" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M50 24 L42 38 L58 38 Z" strokeWidth="2.5" />
+                    <rect x="42.5" y="41" width="15" height="7.5" />
+                    <path d="M38 52 H62 M38 60 H62 M38 68 H62 M50 52 V78" />
+                    <path d="M50 78 L53 84" strokeWidth="4" />
+                </g>
+            </svg>
+        );
+
+        // --- 虛擬 QR Code ---
+        const QRCodeImg = ({ text }) => (
+            <div className="w-12 h-12 border-[1px] border-black p-0.5 bg-white flex flex-wrap flex-shrink-0">
+                {[...Array(49)].map((_, i) => {
+                    const isBlack = (text.length + i) % 3 === 0 || (i % 7 === 0) || (i < 5) || (i > 43);
+                    return <div key={i} className={`w-[14.28%] h-[14.28%] ${isBlack ? 'bg-black' : 'bg-white'}`}></div>;
+                })}
             </div>
-        </div>
+        );
 
-        <div class="p-4 md:p-8">
-            
-            <!-- 控制面板 -->
-            <div class="max-w-xl mx-auto mb-6 md:mb-8 bg-gray-50 p-4 md:p-6 rounded-xl border border-gray-200 shadow-sm">
-                <div class="mb-5">
-                    <label class="block text-sm font-bold text-gray-700 mb-2">1. 上傳您的圖片 (建議白底、線條清晰的圖形)</label>
-                    <input type="file" id="imageUpload" accept="image/*" class="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-[#937760] file:text-white hover:file:bg-[#7a624f] cursor-pointer transition-all">
-                </div>
-                
-                <div>
-                    <label class="block text-sm font-bold text-gray-700 mb-2">2. 選擇您要轉換的新顏色</label>
-                    <div class="flex flex-wrap items-center gap-3">
-                        <input type="color" id="targetColor" value="#937760" class="h-12 w-20 sm:w-24 shrink-0 rounded cursor-pointer border-2 border-gray-300 p-0 shadow-sm">
-                        <input type="text" id="colorHexInput" value="#937760" maxlength="7" placeholder="#HEX" class="flex-1 min-w-[120px] max-w-full sm:w-32 font-mono text-base sm:text-lg font-bold text-gray-700 bg-white px-3 py-2 border-2 border-gray-200 rounded shadow-sm focus:outline-none focus:border-[#937760] focus:ring-1 focus:ring-[#937760] uppercase transition-all" title="可手動輸入色號">
-                    </div>
-                </div>
-                
-                <!-- 預設質感色號按鈕 -->
-                <div class="mt-4 mb-2">
-                    <label class="block text-sm font-bold text-gray-700 mb-2">✨ 快速切換推薦色號 (點擊立即變色)</label>
-                    <div class="flex flex-wrap gap-3">
-                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #937760;" data-color="#937760" title="原定奶茶色"></button>
-                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #D4AF37;" data-color="#D4AF37" title="香檳金"></button>
-                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #1A1A1A;" data-color="#1A1A1A" title="極致黑"></button>
-                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #5B7A8C;" data-color="#5b7a8c" title="莫蘭迪藍"></button>
-                        <button class="color-preset w-10 h-10 rounded-full border-2 border-white shadow-md hover:scale-110 transition-transform" style="background-color: #8C4A4A;" data-color="#8c4a4a" title="復古紅"></button>
-                    </div>
-                </div>
-
-                <!-- 進階微調滑桿 (解決邊緣與破洞問題) -->
-                <div class="mt-6 pt-5 border-t border-gray-200">
-                    <label class="block text-sm font-bold text-gray-700 mb-4">⚙️ 進階微調 (修補破洞與邊緣平滑)</label>
-                    
-                    <div class="mb-4">
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>實心飽滿度 (修補破洞)</span>
-                            <span id="solidValue">150</span>
-                        </div>
-                        <input type="range" id="solidSlider" min="0" max="230" value="150" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#937760]">
-                        <p class="text-[11px] text-gray-400 mt-1">往右拉：強制填滿圖案內部，解決透色與破洞。</p>
-                    </div>
-
-                    <div>
-                        <div class="flex justify-between text-xs text-gray-500 mb-1">
-                            <span>去背乾淨度 (去除雜訊)</span>
-                            <span id="clearValue">240</span>
-                        </div>
-                        <input type="range" id="clearSlider" min="10" max="255" value="240" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#937760]">
-                        <p class="text-[11px] text-gray-400 mt-1">往左拉：讓邊緣更銳利，可去除殘留的白邊或淺色浮水印。</p>
-                    </div>
-                </div>
-
-            </div>
-
-            <!-- 預覽區 (預設隱藏，上傳後顯示) -->
-            <div id="preview-section" class="hidden">
-                <div class="flex flex-col items-center mb-8">
-                    <h3 class="font-bold text-gray-700 mb-3 bg-gray-200 px-4 py-1 rounded-full text-sm flex items-center gap-2">
-                        <span>預覽結果 (已自動去背)</span>
-                    </h3>
-                    <!-- 使用棋盤格背景顯示去背效果 -->
-                    <div class="checkerboard-bg p-2 sm:p-4 border border-gray-300 rounded-lg shadow-inner w-full max-w-full overflow-hidden flex justify-center">
-                        <canvas id="canvas-result" class="max-w-full h-auto drop-shadow-md mx-auto"></canvas>
-                    </div>
-                    <p class="text-xs sm:text-sm text-gray-500 mt-2 text-center">提示：背景的棋盤格代表透明區域</p>
-                </div>
-
-                <!-- 下載按鈕區 -->
-                <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center w-full" id="download-actions">
-                    <button id="btn-download-png" class="w-full sm:w-auto px-5 py-3.5 bg-[#937760] text-white rounded-lg hover:bg-[#7a624f] active:bg-[#5a4838] shadow-md transition-all font-bold text-base md:text-lg flex items-center justify-center gap-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
-                        下載去背 PNG
-                    </button>
-                    
-                    <button id="btn-download-svg" class="w-full sm:w-auto px-5 py-3.5 bg-gray-800 text-white rounded-lg hover:bg-gray-900 active:bg-black shadow-md transition-all font-bold text-base md:text-lg flex items-center justify-center gap-2 relative">
-                        <span id="svg-btn-text" class="flex items-center gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                            AI 轉換為向量 SVG
-                        </span>
-                    </button>
-                </div>
-            </div>
-
-        </div>
-    </div>
-
-    <script>
-        // DOM 元素選取
-        const imageUpload = document.getElementById('imageUpload');
-        const targetColorInput = document.getElementById('targetColor');
-        const colorHexInput = document.getElementById('colorHexInput');
-        
-        // 滑桿 DOM 元素
-        const solidSlider = document.getElementById('solidSlider');
-        const clearSlider = document.getElementById('clearSlider');
-        const solidValue = document.getElementById('solidValue');
-        const clearValue = document.getElementById('clearValue');
-
-        const previewSection = document.getElementById('preview-section');
-        const canvasResult = document.getElementById('canvas-result');
-        const ctxResult = canvasResult.getContext('2d');
-        const btnDownloadPng = document.getElementById('btn-download-png');
-        const btnDownloadSvg = document.getElementById('btn-download-svg');
-        const svgBtnText = document.getElementById('svg-btn-text');
-
-        let currentOriginalImage = null; // 儲存原始圖片物件
-
-        // Hex 轉 RGB 輔助函數
-        function hexToRgb(hex) {
-            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-            return result ? {
-                r: parseInt(result[1], 16),
-                g: parseInt(result[2], 16),
-                b: parseInt(result[3], 16)
-            } : { r: 147, g: 119, b: 96 };
-        }
-
-        // 監聽顏色改變 (從調色盤)
-        targetColorInput.addEventListener('input', (e) => {
-            colorHexInput.value = e.target.value.toUpperCase();
-            if (currentOriginalImage) {
-                processImageToCanvas();
-            }
-        });
-
-        // 監聽手動輸入色號
-        colorHexInput.addEventListener('input', (e) => {
-            let val = e.target.value.trim();
-            // 自動補上 # 字號
-            if (val.length > 0 && !val.startsWith('#')) {
-                val = '#' + val;
-            }
-            
-            // 檢查是否為合法的 3 碼或 6 碼 HEX 色號
-            const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
-            if (hexRegex.test(val)) {
-                let fullHex = val;
-                // 如果是 3 碼縮寫 (如 #FFF)，展開成 6 碼 (#FFFFFF) 以符合 input[type="color"] 格式
-                if (val.length === 4) {
-                    fullHex = '#' + val[1]+val[1] + val[2]+val[2] + val[3]+val[3];
-                }
-                targetColorInput.value = fullHex; // 同步更新左側色塊
-                if (currentOriginalImage) {
-                    processImageToCanvas();
-                }
-            }
-        });
-
-        // 失去焦點時自動格式化或還原錯誤輸入
-        colorHexInput.addEventListener('blur', (e) => {
-            let val = e.target.value.trim();
-            if (!val.startsWith('#')) val = '#' + val;
-            const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
-            if (hexRegex.test(val)) {
-                let fullHex = val;
-                if (val.length === 4) {
-                    fullHex = '#' + val[1]+val[1] + val[2]+val[2] + val[3]+val[3];
-                }
-                e.target.value = fullHex.toUpperCase();
-            } else {
-                // 如果輸入無效格式，還原成目前色塊的顏色
-                e.target.value = targetColorInput.value.toUpperCase();
-            }
-        });
-
-        // 監聽預設顏色按鈕點擊
-        const colorPresets = document.querySelectorAll('.color-preset');
-        colorPresets.forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const newColor = e.target.getAttribute('data-color');
-                targetColorInput.value = newColor; // 更新選色器
-                colorHexInput.value = newColor.toUpperCase(); // 更新文字輸入框
-                if (currentOriginalImage) {
-                    processImageToCanvas(); // 觸發重新渲染
-                }
+        // --- 主要應用程式 ---
+        const App = () => {
+            const createEmptyCard = () => ({
+                id: '', 
+                name: '',
+                bloodType: 'O',
+                photo: null,
+                contractor: '', 
+                project: '通霄電廠第二期更新改建計畫新161kV開關場統包工程',
+                expiryDate: '2026-12-31',
+                uuid: crypto.randomUUID()
             });
-        });
 
-        // 監聽滑桿數值改變
-        solidSlider.addEventListener('input', (e) => {
-            solidValue.textContent = e.target.value;
-            // 確保實心度不能大於等於去背度
-            if(parseInt(solidSlider.value) >= parseInt(clearSlider.value)) {
-                clearSlider.value = parseInt(solidSlider.value) + 1;
-                clearValue.textContent = clearSlider.value;
-            }
-            if (currentOriginalImage) processImageToCanvas();
-        });
+            const [mode, setMode] = useState('batch'); 
+            const [cards, setCards] = useState(Array.from({ length: 8 }, () => createEmptyCard()));
+            const [singleCard, setSingleCard] = useState(createEmptyCard());
+            const [isProcessing, setIsProcessing] = useState(false);
 
-        clearSlider.addEventListener('input', (e) => {
-            clearValue.textContent = e.target.value;
-            // 確保去背度不能小於等於實心度
-            if(parseInt(clearSlider.value) <= parseInt(solidSlider.value)) {
-                solidSlider.value = parseInt(clearSlider.value) - 1;
-                solidValue.textContent = solidSlider.value;
-            }
-            if (currentOriginalImage) processImageToCanvas();
-        });
+            const formatDate = (dateStr) => {
+                if (!dateStr) return "";
+                const date = new Date(dateStr);
+                const minguoYear = date.getFullYear() - 1911;
+                return `至${minguoYear}年${date.getMonth() + 1}月${date.getDate()}日`;
+            };
 
-        // 監聽圖片上傳
-        imageUpload.addEventListener('change', function(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const img = new Image();
-                img.onload = function() {
-                    currentOriginalImage = img;
-                    
-                    // 設定 Canvas 尺寸與原圖一致
-                    canvasResult.width = img.width;
-                    canvasResult.height = img.height;
-                    
-                    previewSection.classList.remove('hidden');
-                    processImageToCanvas();
-                }
-                img.src = event.target.result;
-            }
-            reader.readAsDataURL(file);
-        });
-
-        // 核心影像處理演算法：去背 + 變色
-        function processImageToCanvas() {
-            if (!currentOriginalImage) return;
-
-            // 1. 先將原圖畫上 Canvas
-            ctxResult.clearRect(0, 0, canvasResult.width, canvasResult.height);
-            ctxResult.drawImage(currentOriginalImage, 0, 0);
-
-            // 2. 取得所有像素數據
-            const imageData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
-            const data = imageData.data;
-            const targetRGB = hexToRgb(targetColorInput.value);
-
-            // 取得目前的滑桿設定值
-            const solidThreshold = parseInt(solidSlider.value);
-            const clearThreshold = parseInt(clearSlider.value);
-
-            // 3. 逐一處理像素
-            for (let i = 0; i < data.length; i += 4) {
-                const r = data[i];
-                const g = data[i+1];
-                const b = data[i+2];
-
-                // 計算該像素的亮度 (0~255，越白數值越高)
-                const lightness = (r * 0.299 + g * 0.587 + b * 0.114);
-
-                let newAlpha = 255;
-
-                // 根據滑桿動態計算透明度
-                if (lightness >= clearThreshold) {
-                    newAlpha = 0; 
-                } else if (lightness <= solidThreshold) {
-                    newAlpha = 255; 
+            const updateCardData = (index, field, value) => {
+                if (mode === 'batch') {
+                    const newCards = [...cards];
+                    newCards[index][field] = value;
+                    setCards(newCards);
                 } else {
-                    const range = clearThreshold - solidThreshold;
-                    const distance = clearThreshold - lightness;
-                    newAlpha = Math.round((distance / range) * 255);
+                    setSingleCard(prev => ({ ...prev, [field]: value }));
+                }
+            };
+
+            const handlePhotoUpload = (index, e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onloadend = () => updateCardData(index, 'photo', reader.result);
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            const generatePDF = async () => {
+                const validCards = (mode === 'batch' ? cards : [singleCard]).filter(c => c.name.trim() !== "" || c.photo !== null);
+                if (validCards.length === 0) {
+                    alert("請填寫姓名或上傳照片再進行匯出");
+                    return;
                 }
 
-                data[i]     = targetRGB.r;
-                data[i+1]   = targetRGB.g;
-                data[i+2]   = targetRGB.b;
-                data[i+3]   = newAlpha;
-            }
+                setIsProcessing(true);
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                const cardW = 90;
+                const cardH = 55;
+                const marginX = 10;
+                const marginY = 15;
+                const gapX = 10;
+                const gapY = 10;
 
-            // 4. 將處理後的數據放回 Canvas
-            ctxResult.putImageData(imageData, 0, 0);
-        }
+                for (let i = 0; i < validCards.length; i++) {
+                    const card = validCards[i];
+                    const element = document.getElementById(`print-ref-${card.uuid}`);
+                    if (!element) continue;
 
-        // 下載去背 PNG
-        btnDownloadPng.addEventListener('click', () => {
-            const a = document.createElement('a');
-            a.download = `去背變色圖_${targetColorInput.value.replace('#','')}.png`;
-            a.href = canvasResult.toDataURL('image/png');
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-        });
-
-        // 下載向量 SVG
-        btnDownloadSvg.addEventListener('click', () => {
-            if (!currentOriginalImage) return;
-            
-            svgBtnText.innerHTML = '<svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> 運算轉換中...';
-            btnDownloadSvg.disabled = true;
-
-            setTimeout(() => {
-                try {
-                    const imageData = ctxResult.getImageData(0, 0, canvasResult.width, canvasResult.height);
+                    const canvas = await html2canvas(element, { scale: 4, useCORS: true, logging: false, backgroundColor: '#ffffff' });
+                    const imgData = canvas.toDataURL('image/png');
+                    const pageIdx = i % 8;
+                    const col = pageIdx % 2;
+                    const row = Math.floor(pageIdx / 2);
                     
-                    const options = {
-                        ltres: 0.1,
-                        qtres: 1,
-                        pathomit: 8,
-                        colorsampling: 0,
-                        pal: [{r:0, g:0, b:0, a:0}, {r: hexToRgb(targetColorInput.value).r, g: hexToRgb(targetColorInput.value).g, b: hexToRgb(targetColorInput.value).b, a: 255}]
-                    };
-
-                    const svgString = ImageTracer.imagedataToSVG(imageData, options);
-                    
-                    const blob = new Blob([svgString], {type: 'image/svg+xml;charset=utf-8'});
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `向量圖_${targetColorInput.value.replace('#','')}.svg`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
-
-                } catch (error) {
-                    alert("SVG 轉換過程中發生錯誤。如果圖片尺寸過大可能無法轉換。");
-                    console.error(error);
-                } finally {
-                    svgBtnText.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg> AI 轉換為向量 SVG';
-                    btnDownloadSvg.disabled = false;
+                    if (i > 0 && pageIdx === 0) doc.addPage();
+                    const x = marginX + (col * (cardW + gapX));
+                    const y = marginY + (row * (cardH + gapY));
+                    doc.addImage(imgData, 'PNG', x, y, cardW, cardH);
                 }
-            }, 50);
-        });
 
+                doc.save(`台電出入証產生器_批次匯出_${new Date().getTime()}.pdf`);
+                setIsProcessing(false);
+            };
+
+            const IDCard = ({ data, domId }) => (
+                <div id={domId} className="w-[340px] h-[208px] border-[1.5px] border-black bg-white flex flex-col box-border relative overflow-hidden shrink-0">
+                    <div className="flex justify-between items-center px-2 py-1.5 border-b-[1.5px] border-black">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-11 h-11 flex items-center justify-center p-0.5"><TaipowerLogo /></div>
+                            <div className="flex flex-col">
+                                <div className="text-[14px] font-bold tracking-tighter leading-none text-black">台灣電力公司綜合施工處工作證</div>
+                                <div className="text-[13.5px] font-bold mt-1 leading-none tracking-[0.55em] text-black">承 商 人 員 工 作 證</div>
+                            </div>
+                        </div>
+                        <QRCodeImg text={data.id || 'TP'} />
+                    </div>
+                    <div className="text-center text-[10.5px] font-bold border-b-[1.5px] border-black py-0.5 px-2 truncate text-black">{data.project}</div>
+                    <div className="flex flex-1 overflow-hidden">
+                        <div className="w-[105px] border-r-[1.5px] border-black flex-shrink-0 flex items-center justify-center p-1.5 bg-white">
+                            <div className="w-full h-full border border-gray-300 overflow-hidden flex items-center justify-center">
+                                {data.photo ? <img src={data.photo} className="w-full h-full object-contain" /> : <UserIcon size={55} className="text-gray-100" />}
+                            </div>
+                        </div>
+                        <div className="flex-1 flex flex-col text-[12px] font-bold text-black">
+                            {[
+                                { label: "編 號", value: data.id },
+                                { label: "承 商", value: data.contractor },
+                                { label: "姓 名", value: data.name },
+                                { label: "血 型", value: data.bloodType },
+                                { label: "期 限", value: formatDate(data.expiryDate) }
+                            ].map((row, i) => (
+                                <div key={i} className={`flex flex-1 items-center ${i !== 4 ? 'border-b-[1.5px] border-black' : ''}`}>
+                                    <div className="w-[48px] h-full flex items-center justify-center border-r-[1.5px] border-black bg-slate-50 text-[10.5px] flex-shrink-0 text-center px-1">{row.label}</div>
+                                    <div className="flex-1 text-center px-2 py-0.5 leading-tight truncate">{row.value}</div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+
+            const activeCards = mode === 'batch' ? cards : [singleCard];
+
+            return (
+                <div className="min-h-screen p-4 md:p-8">
+                    <div className="max-w-6xl mx-auto mb-8 no-print">
+                        <div className="bg-white rounded-3xl shadow-xl p-8 border border-slate-200">
+                            <div className="flex flex-col lg:flex-row justify-between items-center gap-8">
+                                <div>
+                                    <h1 className="text-3xl font-black text-slate-800 flex items-center gap-4">
+                                        <FileTextIcon className="text-blue-600" size={32} /> 台電出入証產生器
+                                    </h1>
+                                    <p className="text-slate-500 mt-2 font-medium">9x5.5cm 標準規格 | 民國年換算 | GitHub 部署版</p>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-4">
+                                    <div className="flex bg-slate-100 p-1.5 rounded-2xl border border-slate-200">
+                                        <button onClick={() => setMode('single')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${mode === 'single' ? 'bg-white shadow-lg text-blue-600' : 'text-slate-500'}`}><SquareIcon size={16} /> 單張</button>
+                                        <button onClick={() => setMode('batch')} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${mode === 'batch' ? 'bg-white shadow-lg text-blue-600' : 'text-slate-500'}`}><LayoutGridIcon size={16} /> 批次</button>
+                                    </div>
+                                    <button onClick={generatePDF} disabled={isProcessing} className="flex items-center gap-3 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-400 text-white px-8 py-4 rounded-2xl font-black shadow-xl transition-all hover:scale-105 active:scale-95">
+                                        {isProcessing ? <RefreshCwIcon className="animate-spin" size={24} /> : <FileDownIcon size={24} />} 產生批次 PDF 檔
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-10 no-print">
+                        <div className={`grid gap-5 ${mode === 'batch' ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'}`}>
+                            {activeCards.map((card, idx) => (
+                                <div key={card.uuid} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-200 hover:border-blue-400 transition-all">
+                                    <div className="flex items-center justify-between mb-5 pb-3 border-b border-slate-100">
+                                        <h3 className="font-black text-slate-700 flex items-center gap-2"><CheckCircleIcon size={20} className={card.name ? "text-green-500" : "text-slate-300"} /> 編輯証件 #{idx + 1}</h3>
+                                        {!card.name && <span className="text-[10px] bg-orange-50 text-orange-600 px-2 py-1 rounded-full font-bold flex items-center gap-1"><AlertCircleIcon size={10} /> 未輸入姓名</span>}
+                                    </div>
+                                    <div className="space-y-5">
+                                        <div className="flex gap-4">
+                                            <div onClick={() => document.getElementById(`upload-${idx}`).click()} className="w-24 h-32 bg-slate-50 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center cursor-pointer overflow-hidden hover:border-blue-300 transition-all shrink-0">
+                                                {card.photo ? <img src={card.photo} className="w-full h-full object-contain" /> : <><UploadIcon size={28} className="text-slate-300 mb-2" /><span className="text-[10px] text-slate-400 font-black">照片</span></>}
+                                                <input id={`upload-${idx}`} type="file" className="hidden" accept="image/*" onChange={(e) => handlePhotoUpload(mode === 'batch' ? idx : 0, e)} />
+                                            </div>
+                                            <div className="flex-1 space-y-3">
+                                                <input type="text" placeholder="姓名" value={card.name} onChange={(e) => updateCardData(idx, 'name', e.target.value)} className="w-full p-2.5 border rounded-xl font-bold outline-none" />
+                                                <input type="text" placeholder="証件編號" value={card.id} onChange={(e) => updateCardData(idx, 'id', e.target.value)} className="w-full p-2.5 border rounded-xl font-bold outline-none" />
+                                                <select value={card.bloodType} onChange={(e) => updateCardData(idx, 'bloodType', e.target.value)} className="w-full p-2.5 border rounded-xl font-bold bg-white outline-none cursor-pointer">
+                                                    <option value="O">O 型</option><option value="A">A 型</option><option value="B">B 型</option><option value="AB">AB 型</option><option value="RH">RH 型</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="pt-2 space-y-3 border-t border-slate-50">
+                                            <input type="text" placeholder="承商名稱" value={card.contractor} onChange={(e) => updateCardData(idx, 'contractor', e.target.value)} className="w-full p-2.5 border rounded-xl text-sm font-bold" />
+                                            <input type="text" placeholder="工程項目" value={card.project} onChange={(e) => updateCardData(idx, 'project', e.target.value)} className="w-full p-2.5 border rounded-xl text-sm font-bold" />
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs text-slate-500 font-black shrink-0">有效期限:</span>
+                                                <input type="date" value={card.expiryDate} onChange={(e) => updateCardData(idx, 'expiryDate', e.target.value)} className="flex-1 p-2.5 border rounded-xl text-sm font-bold cursor-pointer" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="sticky top-8 space-y-6">
+                            <div className="bg-slate-900 p-5 rounded-t-3xl text-white font-black flex items-center justify-between shadow-2xl">
+                                <span className="flex items-center gap-2"><LayoutGridIcon size={18} /> 即時預覽區域</span>
+                                <span className="text-[11px] text-blue-400 bg-blue-400/10 px-3 py-1 rounded-full">90x55mm</span>
+                            </div>
+                            <div className="bg-slate-200 p-8 rounded-b-3xl shadow-inner flex flex-col items-center gap-10 overflow-auto max-h-[75vh] border-x border-b border-slate-300">
+                                {activeCards.map((card, idx) => (
+                                    <div key={`preview-${card.uuid}`} className={`bg-white p-3 shadow-2xl transition-all ${!card.name && !card.photo ? 'opacity-30 grayscale blur-[0.5px]' : 'opacity-100'}`}>
+                                        <IDCard data={card} domId={`print-ref-${card.uuid}`} />
+                                        <div className="text-center mt-3 text-[10px] font-black text-slate-500 border-t pt-2 border-slate-100">PREVIEW CARD #{idx + 1}</div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+
+                    {isProcessing && (
+                        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex flex-col items-center justify-center z-50 no-print">
+                            <div className="bg-white p-12 rounded-[2.5rem] flex flex-col items-center gap-8 shadow-2xl">
+                                <RefreshCwIcon className="animate-spin text-blue-600" size={64} />
+                                <p className="font-black text-2xl text-slate-800">正在處理 PDF 檔案...</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
     </script>
 </body>
 </html>
